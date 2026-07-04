@@ -6,6 +6,14 @@ Claude Code environment switcher. Switch providers, models, and parameters with 
 
 ## Install
 
+**Online (recommended):**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/pzehrel/cc-switch-env/main/install.sh | bash
+```
+
+**From source:**
+
 ```bash
 git clone git@github.com:pzehrel/cc-switch-env.git
 cd cc-switch-env
