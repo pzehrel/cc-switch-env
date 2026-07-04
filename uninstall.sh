@@ -10,18 +10,18 @@ LOG="$DATA_DIR/install.log"
 echo "==> cc-switch-env uninstall"
 
 if [ ! -f "$LOG" ]; then
-    echo "未找到 install.log，可能已卸载"
+    echo "install.log not found — may already be uninstalled"
     echo ""
-    echo "手动清理："
-    echo "  1. 从 .zshrc / .bashrc 中删除 eval \"\$(ccse init)\" 行"
-    echo "  2. 删除 completion source 行"
+    echo "Manual cleanup:"
+    echo "  1. Remove eval \"\$(ccse init)\" from .zshrc / .bashrc"
+    echo "  2. Remove completion source line"
     echo "  3. rm -rf $CONFIG_DIR"
     echo "  4. rm -rf $DATA_DIR"
     echo "  5. rm -f ~/.local/bin/ccse"
     exit 0
 fi
 
-# 按 install.log 逐文件删除
+# Remove files recorded in install.log
 while IFS= read -r file; do
     [ -z "$file" ] && continue
     if [ -f "$file" ]; then
@@ -30,14 +30,14 @@ while IFS= read -r file; do
     fi
 done < "$LOG"
 
-# 删除 install.log
+# Remove install.log itself
 rm -f "$LOG"
 
-# 清理空目录
+# Remove empty directories
 rmdir "$DATA_DIR/vars" 2>/dev/null || true
 rmdir "$DATA_DIR" 2>/dev/null || true
 
-# 清理 completions 目录
+# Clean completion directory
 if [ -d "$CONFIG_DIR/completions" ]; then
     rm -f "$CONFIG_DIR/completions/_ccse"
     rm -f "$CONFIG_DIR/completions/ccse.bash"
@@ -45,12 +45,12 @@ if [ -d "$CONFIG_DIR/completions" ]; then
 fi
 
 echo ""
-echo "==> 卸载完成"
+echo "==> Uninstall complete"
 echo ""
-echo "还需要手动操作："
-echo "  1. 从 .zshrc / .bashrc 中删除 eval \"\$(ccse init)\" 行"
-echo "  2. 删除 completion source 行"
+echo "Manual steps remaining:"
+echo "  1. Remove eval \"\$(ccse init)\" from .zshrc / .bashrc"
+echo "  2. Remove completion source line"
 echo ""
-echo "以下目录仍保留（可能含 secrets 和自定义 provider）："
+echo "The following directory still exists (may contain secrets and custom providers):"
 echo "  $CONFIG_DIR"
-echo "  如确认不再需要，手动执行: rm -rf $CONFIG_DIR"
+echo "  If you no longer need it, run: rm -rf $CONFIG_DIR"

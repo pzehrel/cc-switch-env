@@ -1,5 +1,5 @@
 # DeepSeek
-# secrets 需要: CCE_DEEPSEEK_TOKEN
+# Required secrets: CCE_DEEPSEEK_TOKEN
 
 export ANTHROPIC_BASE_URL="https://api.deepseek.com/anthropic"
 export ANTHROPIC_AUTH_TOKEN="${CCE_DEEPSEEK_TOKEN:?}"

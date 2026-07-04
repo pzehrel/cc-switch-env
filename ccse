@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# cc-switch-env — Claude Code 运行环境切换工具
+# cc-switch-env — Claude Code environment switcher
 # https://github.com/pzehrel/cc-switch-env
 
 set -u -o pipefail
 
-# ── XDG 路径 ──
+# ── XDG paths ──
 CCSE_CONFIG="${CCSE_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/ccse}"
 CCSE_DATA="${CCSE_DATA:-${XDG_DATA_HOME:-$HOME/.local/share}/ccse}"
 : "${SECRETS:=$CCSE_CONFIG/secrets}"
@@ -13,7 +13,7 @@ STATE="${CCSE_DATA}/state"
 LAST="${CCSE_DATA}/last"
 VARS_DIR="${CCSE_DATA}/vars"
 
-# ── 工具函数 ──
+# ── Utility functions ──
 
 _load_secrets() {
     [ -f "$SECRETS" ] && . "$SECRETS"
@@ -26,13 +26,13 @@ _list_providers() {
     done
 }
 
-# 提取 provider 文件中所有 export 变量名（A）
+# Extract all export variable names from a provider file (strategy A)
 _extract_exports() {
     grep -oE '^[[:space:]]*export[[:space:]]+([A-Za-z_][A-Za-z0-9_]*)' "$1" 2>/dev/null \
         | sed 's/^[[:space:]]*export[[:space:]]*//'
 }
 
-# 提取 provider 文件中 @noreset 标记的变量名（B）
+# Extract @noreset annotations from a provider file (strategy B)
 _extract_noreset() {
     grep -oE '#[[:space:]]*@noreset:[[:space:]]*.*' "$1" 2>/dev/null \
         | sed 's/.*@noreset:[[:space:]]*//' \
@@ -40,7 +40,7 @@ _extract_noreset() {
         | grep -v '^$'
 }
 
-# 全量 reset 兜底：unset 所有已知 CC 变量
+# Full reset fallback: unset all known CC variables
 _print_full_reset() {
     cat <<'EOF'
 unset ANTHROPIC_API_KEY
@@ -63,7 +63,7 @@ unset API_TIMEOUT_MS
 EOF
 }
 
-# 精准 reset：只清理上一个 provider 设过的变量（A + B）
+# Precise reset: only unset variables declared by the previous provider (A + B)
 _print_reset() {
     local prev_provider="${CCSE_CURRENT_PROVIDER:-}"
     local prev_file="$PROVIDERS/${prev_provider}.zsh"
@@ -85,7 +85,7 @@ _print_reset() {
     done < <(_extract_exports "$prev_file")
 }
 
-# 输出 provider 的环境变量（source 文件，解析 secrets 中的变量引用）
+# Output provider env vars (strategy C: source + capture)
 _print_provider_env() {
     local name="$1"
     local file="$PROVIDERS/${name}.zsh"
@@ -98,7 +98,7 @@ _print_provider_env() {
 
     _load_secrets
 
-    # source provider 文件，变量（如 ${CCE_*_TOKEN:?}）在当前进程中展开
+    # Source the provider file; ${CCE_*_TOKEN:?} style vars expand in-process
     { . "$file"; } 2>/tmp/ccse-provider-err.$$ || {
         echo "ccse: failed to load provider '$name'" >&2
         cat /tmp/ccse-provider-err.$$ >&2 2>/dev/null
@@ -108,7 +108,7 @@ _print_provider_env() {
     }
     rm -f /tmp/ccse-provider-err.$$
 
-    # source 完成后，读取 provider 声明的变量名，输出当前的 value
+    # Print current values of variables declared by this provider
     local vars
     vars=$(_extract_exports "$file")
     local var value
@@ -120,7 +120,7 @@ _print_provider_env() {
     done
 }
 
-# ── 子命令 ──
+# ── Subcommands ──
 
 cmd_init() {
     cat <<'WRAPPER'
@@ -147,7 +147,7 @@ _ccse() {
 alias ccse=_ccse
 WRAPPER
 
-    # 内联 restore，一次子进程搞定
+    # Inline restore so init takes only one subprocess
     cmd_restore
 }
 
@@ -188,7 +188,7 @@ cmd_restore() {
 
     local provider
 
-    # 三级回退：state → last → 第一个可用
+    # Three-tier fallback: state → last → first available
     if [ -f "$STATE" ]; then
         provider="$(cat "$STATE" 2>/dev/null)"
         if [ -n "$provider" ] && [ -f "$PROVIDERS/${provider}.zsh" ]; then
@@ -209,7 +209,7 @@ cmd_restore() {
         fi
     fi
 
-    # 回退到第一个可用 provider
+    # Fall back to first available provider
     provider="$(_list_providers | head -1)"
     if [ -n "$provider" ]; then
         _print_full_reset
@@ -225,7 +225,7 @@ cmd_current() {
     printf "last    : %s\n" "$(cat "$LAST" 2>/dev/null || echo none)"
 }
 
-# ── 入口 ──
+# ── Entry point ──
 case "${1:-}" in
     init)     cmd_init ;;
     list)     cmd_list ;;

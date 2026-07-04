@@ -1,5 +1,5 @@
 # MiniMax
-# secrets 需要: CCE_MINIMAX_TOKEN
+# Required secrets: CCE_MINIMAX_TOKEN
 
 export ANTHROPIC_BASE_URL="https://api.minimaxi.com/anthropic"
 export ANTHROPIC_AUTH_TOKEN="${CCE_MINIMAX_TOKEN:?}"

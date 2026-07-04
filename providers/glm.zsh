@@ -1,5 +1,5 @@
-# 智谱 GLM
-# secrets 需要: CCE_GLM_TOKEN
+# GLM (Zhipu)
+# Required secrets: CCE_GLM_TOKEN
 
 export ANTHROPIC_BASE_URL="https://open.bigmodel.cn/api/anthropic"
 export ANTHROPIC_AUTH_TOKEN="${CCE_GLM_TOKEN:?}"

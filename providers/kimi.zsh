@@ -1,5 +1,5 @@
 # Kimi (Moonshot)
-# secrets 需要: CCE_KIMI_TOKEN
+# Required secrets: CCE_KIMI_TOKEN
 
 export ANTHROPIC_BASE_URL="https://api.kimi.com/coding/"
 export ANTHROPIC_AUTH_TOKEN="${CCE_KIMI_TOKEN:?}"

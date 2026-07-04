@@ -10,23 +10,23 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 echo "==> cc-switch-env install"
 
-# 创建目录
+# Create directories
 mkdir -p "$BIN_DIR"
 mkdir -p "$CONFIG_DIR/providers"
 mkdir -p "$CONFIG_DIR/completions"
 mkdir -p "$DATA_DIR"
 mkdir -p "$DATA_DIR/vars"
 
-# 安装记录
+# Install log (for uninstall)
 LOG="$DATA_DIR/install.log"
 > "$LOG"
 
-# 安装 ccse 脚本
+# Install main script
 cp "$SCRIPT_DIR/ccse" "$BIN_DIR/ccse"
 chmod +x "$BIN_DIR/ccse"
 echo "$BIN_DIR/ccse" >> "$LOG"
 
-# 安装 provider 文件
+# Install provider files
 for f in "$SCRIPT_DIR/providers"/*.zsh; do
     [ -f "$f" ] || continue
     name="$(basename "$f")"
@@ -34,7 +34,7 @@ for f in "$SCRIPT_DIR/providers"/*.zsh; do
     echo "$CONFIG_DIR/providers/$name" >> "$LOG"
 done
 
-# 安装补全文件
+# Install completion files
 if [ -f "$SCRIPT_DIR/completions/_ccse" ]; then
     cp "$SCRIPT_DIR/completions/_ccse" "$CONFIG_DIR/completions/_ccse"
     echo "$CONFIG_DIR/completions/_ccse" >> "$LOG"
@@ -44,23 +44,23 @@ if [ -f "$SCRIPT_DIR/completions/ccse.bash" ]; then
     echo "$CONFIG_DIR/completions/ccse.bash" >> "$LOG"
 fi
 
-# secrets 模板（仅在不存在时复制）
+# Secrets template (only if not already present)
 if [ ! -f "$CONFIG_DIR/secrets" ]; then
     cp "$SCRIPT_DIR/secrets.example" "$CONFIG_DIR/secrets"
     echo "$CONFIG_DIR/secrets" >> "$LOG"
-    echo "==> secrets 文件已创建: $CONFIG_DIR/secrets"
-    echo "    请编辑此文件，填入真实的 API key"
+    echo "==> secrets created: $CONFIG_DIR/secrets"
+    echo "    Edit this file and fill in your real API keys"
 else
-    echo "==> secrets 文件已存在，跳过"
+    echo "==> secrets already exists, skipping"
 fi
 
 echo ""
-echo "==> 安装完成"
+echo "==> Install complete"
 echo ""
-echo "在 .zshrc 或 .bashrc 中添加以下行："
+echo "Add the following lines to your .zshrc or .bashrc:"
 echo ""
 echo "    eval \"\$(ccse init)\""
 echo "    source $CONFIG_DIR/completions/_ccse     # zsh"
 echo "    # source $CONFIG_DIR/completions/ccse.bash   # bash"
 echo ""
-echo "然后重新打开终端或执行 source ~/.zshrc"
+echo "Then restart your terminal or run: source ~/.zshrc"
