@@ -8,7 +8,7 @@ set -u -o pipefail
 CCSE_CONFIG="${CCSE_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/ccse}"
 CCSE_DATA="${CCSE_DATA:-${XDG_DATA_HOME:-$HOME/.local/share}/ccse}"
 : "${SECRETS:=$CCSE_CONFIG/secrets}"
-PROVIDERS="${CCSE_CONFIG}/providers"
+: "${PROVIDERS:=$CCSE_CONFIG/providers}"
 STATE="${CCSE_DATA}/state"
 LAST="${CCSE_DATA}/last"
 VARS_DIR="${CCSE_DATA}/vars"
