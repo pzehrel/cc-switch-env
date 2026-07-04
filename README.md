@@ -1,8 +1,10 @@
 # cc-switch-env
 
-Claude Code 运行环境切换工具。
+[中文](README.zh-CN.md)
 
-## 安装
+Claude Code environment switcher. Switch providers, models, and parameters with a single command.
+
+## Install
 
 ```bash
 git clone git@github.com:pzehrel/cc-switch-env.git
@@ -10,86 +12,88 @@ cd cc-switch-env
 ./install.sh
 ```
 
-## 配置
+## Setup
 
-### 1. Shell 集成
+### 1. Shell integration
 
-**zsh** — 在 `~/.zshrc` 中添加：
+**zsh** — add to `~/.zshrc`:
 
 ```zsh
 eval "$(ccse init)"
 source ~/.config/ccse/completions/_ccse
 ```
 
-**bash** — 在 `~/.bashrc` 中添加：
+**bash** — add to `~/.bashrc`:
 
 ```bash
 eval "$(ccse init)"
 source ~/.config/ccse/completions/ccse.bash
 ```
 
-### 2. 填写 API Key
+### 2. Fill in API keys
 
 ```bash
 vim ~/.config/ccse/secrets
 ```
 
-按模板填入各 provider 的 API key。
+## Usage
 
-## 使用
+| Command | Effect |
+|---------|--------|
+| `ccse ls` | List all providers |
+| `ccse current` | Show current provider, default, last used |
+| `ccse kimi` | Switch to kimi (session only, recorded as last) |
+| `ccse ds` | Switch using alias (ds → deepseek) |
+| `ccse default kimi` | Switch + set as default |
+| `ccse default -d` | Clear default |
 
-| 命令 | 效果 |
-|------|------|
-| `ccse ls` | 列出所有可用 provider |
-| `ccse current` | 查看当前 provider、默认值、上次使用 |
-| `ccse kimi` | 切换到 kimi（会话级，记录为 last） |
-| `ccse default kimi` | 切换 + 设为默认 |
-| `ccse default -d` | 清除默认 |
+Open a terminal and start typing `cc` directly — no manual steps needed.
 
-开终端后无需手动操作，自动恢复上次使用的环境，直接 `cc`（`claude`）即可。
-
-## 目录结构
+## Directory structure
 
 ```
-~/.local/bin/ccse               ← CLI 本体
-~/.config/ccse/                  ← 用户配置
-├── secrets                      ← API keys（不提交）
-├── providers/                   ← provider 定义
-└── completions/                 ← Tab 补全
-~/.local/share/ccse/             ← 运行时数据
-├── state                        ← 默认 provider
-├── last                         ← 上次使用的 provider
-└── vars/                        ← provider 变量缓存
+~/.local/bin/ccse               ← CLI binary
+~/.config/ccse/                  ← User config
+├── secrets                      ← API keys (do not commit)
+├── providers/                   ← Provider definitions
+└── completions/                 ← Tab completions
+~/.local/share/ccse/             ← Runtime data
+├── state                        ← Default provider
+├── last                         ← Last used provider
+└── vars/                        ← Provider variable cache
 ```
 
-## 自定义 Provider
+## Custom providers
 
-在 `~/.config/ccse/providers/` 下新增 `.zsh` 文件即可：
+Add a `.zsh` file to `~/.config/ccse/providers/`:
 
 ```zsh
-# ~/.config/ccse/providers/my-provider.zsh
+# @alias: my
+# My Provider
+# Required secrets: CCE_MY_TOKEN
+
 export ANTHROPIC_BASE_URL="https://api.example.com/anthropic"
-export ANTHROPIC_AUTH_TOKEN="${CCE_MYPROVIDER_TOKEN:?}"
+export ANTHROPIC_AUTH_TOKEN="${CCE_MY_TOKEN:?}"
 ```
 
-同时更新 `~/.config/ccse/secrets` 添加对应的 key。
+Update `~/.config/ccse/secrets` with the corresponding key. `ccse ls` picks it up automatically.
 
-### @noreset
+### `@noreset`
 
-如果某个变量希望切换 provider 时不被清除，用注释标记：
+Mark variables that should persist across provider switches:
 
 ```zsh
 # @noreset: ANTHROPIC_CUSTOM_HEADERS
 export ANTHROPIC_CUSTOM_HEADERS="x-org-id: my-org"
 ```
 
-## 卸载
+## Uninstall
 
 ```bash
 ./uninstall.sh
 ```
 
-然后手动从 `.zshrc` / `.bashrc` 中删除 integration 行。
+Then manually remove the integration lines from `.zshrc` / `.bashrc`.
 
 ## License
 
