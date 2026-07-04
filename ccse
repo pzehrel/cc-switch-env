@@ -26,6 +26,25 @@ _list_providers() {
     done
 }
 
+# Extract @alias annotation from a provider file
+_extract_alias() {
+    grep -oE '#[[:space:]]*@alias:[[:space:]]*[A-Za-z0-9_-]+' "$1" 2>/dev/null \
+        | sed 's/.*@alias:[[:space:]]*//' \
+        | head -1
+}
+
+# Resolve alias to provider name; returns the name unchanged if not an alias
+_resolve_alias() {
+    local name="$1"
+    local file="$PROVIDERS/${name}.zsh"
+    [ -f "$file" ] && { echo "$name"; return 0; }
+    # Search all providers for @alias matching this name
+    local resolved
+    resolved=$(grep -l "^# @alias: ${name}$" "$PROVIDERS"/*.zsh 2>/dev/null | head -1)
+    [ -n "$resolved" ] && { basename "$resolved" .zsh; return 0; }
+    echo "$name"
+}
+
 # Extract all export variable names from a provider file (strategy A)
 _extract_exports() {
     grep -oE '^[[:space:]]*export[[:space:]]+([A-Za-z_][A-Za-z0-9_]*)' "$1" 2>/dev/null \
@@ -152,12 +171,38 @@ WRAPPER
 }
 
 cmd_list() {
-    _list_providers
+    case "${1:-}" in
+        --names)
+            _list_providers
+            ;;
+        --aliases)
+            for f in "$PROVIDERS"/*.zsh; do
+                [ -f "$f" ] || continue
+                _extract_alias "$f"
+            done
+            ;;
+        *)
+            local name alias
+            for f in "$PROVIDERS"/*.zsh; do
+                [ -f "$f" ] || continue
+                name="$(basename "$f" .zsh)"
+                alias=$(_extract_alias "$f")
+                if [ -n "$alias" ]; then
+                    echo "$name ($alias)"
+                else
+                    echo "$name"
+                fi
+            done
+            ;;
+    esac
 }
 
 cmd_switch() {
     local name="${1:-}"
     [ -z "$name" ] && { echo "ccse: usage: ccse <provider>" >&2; return 1; }
+
+    # Resolve alias if needed
+    name=$(_resolve_alias "$name")
 
     _print_reset
     _print_provider_env "$name" || return 1
@@ -228,7 +273,7 @@ cmd_current() {
 # ── Entry point ──
 case "${1:-}" in
     init)     cmd_init ;;
-    list)     cmd_list ;;
+    list|ls)  cmd_list "${2:-}" ;;
     _switch)  cmd_switch "${2:-}" ;;
     default)  cmd_default "${2:-}" ;;
     restore)  cmd_restore ;;

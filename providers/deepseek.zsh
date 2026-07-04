@@ -1,3 +1,4 @@
+# @alias: ds
 # DeepSeek
 # Required secrets: CCE_DEEPSEEK_TOKEN
 

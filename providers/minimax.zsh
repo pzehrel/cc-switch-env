@@ -1,3 +1,4 @@
+# @alias: mm
 # MiniMax
 # Required secrets: CCE_MINIMAX_TOKEN
 

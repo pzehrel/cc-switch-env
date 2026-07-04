@@ -3,20 +3,23 @@
 # cc-switch-env zsh completion
 
 _ccse_completion() {
-  local -a providers
-  providers=($(ccenv list 2>/dev/null))
+  local -a providers aliases
+  providers=($(command ccse list --names 2>/dev/null))
+  aliases=($(command ccse list --aliases 2>/dev/null))
 
   case $CURRENT in
     2)
       _alternative \
         'command:command:((ls\:"list providers" current\:"show status" default\:"set or clear default"))' \
-        "provider:provider:(${providers[*]})"
+        "provider:provider:(${providers[*]})" \
+        "alias:alias:(${aliases[*]})"
       ;;
     3)
       if [[ "${words[2]}" == "default" ]]; then
         _alternative \
           'flag:flag:((-d\:"clear default"))' \
-          "provider:provider:(${providers[*]})"
+          "provider:provider:(${providers[*]})" \
+          "alias:alias:(${aliases[*]})"
       fi
       ;;
   esac

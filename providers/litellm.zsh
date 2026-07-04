@@ -1,3 +1,4 @@
+# @alias: ll
 # LiteLLM (local proxy)
 # Required secrets: CCE_LITELLM_TOKEN
 
