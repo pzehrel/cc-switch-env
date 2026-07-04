@@ -1,0 +1,25 @@
+#compdef ccse
+
+# cc-switch-env zsh completion
+
+_ccse_completion() {
+  local -a providers
+  providers=($(ccenv list 2>/dev/null))
+
+  case $CURRENT in
+    2)
+      _alternative \
+        'command:command:((ls\:"list providers" current\:"show status" default\:"set or clear default"))' \
+        "provider:provider:(${providers[*]})"
+      ;;
+    3)
+      if [[ "${words[2]}" == "default" ]]; then
+        _alternative \
+          'flag:flag:((-d\:"clear default"))' \
+          "provider:provider:(${providers[*]})"
+      fi
+      ;;
+  esac
+}
+
+_ccse_completion "$@"

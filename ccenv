@@ -1,0 +1,241 @@
+#!/usr/bin/env bash
+# cc-switch-env — Claude Code 运行环境切换工具
+# https://github.com/pzehrel/cc-switch-env
+
+set -u -o pipefail
+
+# ── XDG 路径 ──
+CCENV_CONFIG="${CCENV_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/ccenv}"
+CCENV_DATA="${CCENV_DATA:-${XDG_DATA_HOME:-$HOME/.local/share}/ccenv}"
+: "${SECRETS:=$CCENV_CONFIG/secrets}"
+PROVIDERS="${CCENV_CONFIG}/providers"
+STATE="${CCENV_DATA}/state"
+LAST="${CCENV_DATA}/last"
+VARS_DIR="${CCENV_DATA}/vars"
+
+# ── 工具函数 ──
+
+_load_secrets() {
+    [ -f "$SECRETS" ] && . "$SECRETS"
+}
+
+_list_providers() {
+    for f in "$PROVIDERS"/*.zsh; do
+        [ -f "$f" ] || continue
+        basename "$f" .zsh
+    done
+}
+
+# 提取 provider 文件中所有 export 变量名（A）
+_extract_exports() {
+    grep -oE '^[[:space:]]*export[[:space:]]+([A-Za-z_][A-Za-z0-9_]*)' "$1" 2>/dev/null \
+        | sed 's/^[[:space:]]*export[[:space:]]*//'
+}
+
+# 提取 provider 文件中 @noreset 标记的变量名（B）
+_extract_noreset() {
+    grep -oE '#[[:space:]]*@noreset:[[:space:]]*.*' "$1" 2>/dev/null \
+        | sed 's/.*@noreset:[[:space:]]*//' \
+        | tr ' ' '\n' \
+        | grep -v '^$'
+}
+
+# 全量 reset 兜底：unset 所有已知 CC 变量
+_print_full_reset() {
+    cat <<'EOF'
+unset ANTHROPIC_API_KEY
+unset ANTHROPIC_BASE_URL
+unset ANTHROPIC_CUSTOM_HEADERS
+unset ANTHROPIC_AUTH_TOKEN
+unset ANTHROPIC_MODEL
+unset ANTHROPIC_DEFAULT_HAIKU_MODEL
+unset ANTHROPIC_DEFAULT_HAIKU_MODEL_NAME
+unset ANTHROPIC_DEFAULT_SONNET_MODEL
+unset ANTHROPIC_DEFAULT_SONNET_MODEL_NAME
+unset ANTHROPIC_DEFAULT_OPUS_MODEL
+unset ANTHROPIC_DEFAULT_OPUS_MODEL_NAME
+unset CLAUDE_CODE_EFFORT_LEVEL
+unset CLAUDE_CODE_SUBAGENT_MODEL
+unset CLAUDE_CODE_AUTO_COMPACT_WINDOW
+unset CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC
+unset CLAUDE_CODE_ATTRIBUTION_HEADER
+unset API_TIMEOUT_MS
+EOF
+}
+
+# 精准 reset：只清理上一个 provider 设过的变量（A + B）
+_print_reset() {
+    local prev_provider="${CCENV_CURRENT_PROVIDER:-}"
+    local prev_file="$PROVIDERS/${prev_provider}.zsh"
+
+    if [ -z "$prev_provider" ] || [ ! -f "$prev_file" ]; then
+        _print_full_reset
+        return
+    fi
+
+    local noreset
+    noreset=$(_extract_noreset "$prev_file")
+
+    while IFS= read -r var; do
+        [ -z "$var" ] && continue
+        if echo "$noreset" | grep -qxF "$var" 2>/dev/null; then
+            continue
+        fi
+        echo "unset $var"
+    done < <(_extract_exports "$prev_file")
+}
+
+# 输出 provider 的环境变量（source 文件，解析 secrets 中的变量引用）
+_print_provider_env() {
+    local name="$1"
+    local file="$PROVIDERS/${name}.zsh"
+
+    if [ ! -f "$file" ]; then
+        echo "ccenv: unknown provider '$name'" >&2
+        printf "ccenv: available: %s\n" "$(_list_providers | tr '\n' ' ')" >&2
+        return 1
+    fi
+
+    _load_secrets
+
+    # source provider 文件，变量（如 ${CCE_*_TOKEN:?}）在当前进程中展开
+    # 若 secrets 缺少对应的 key，${VAR:?} 会导致 source 失败
+    { . "$file"; } 2>/tmp/ccenv-provider-err.$$ || {
+        echo "ccenv: failed to load provider '$name'" >&2
+        cat /tmp/ccenv-provider-err.$$ >&2 2>/dev/null
+        rm -f /tmp/ccenv-provider-err.$$
+        echo "ccenv: check that required keys are set in $SECRETS" >&2
+        return 1
+    }
+    rm -f /tmp/ccenv-provider-err.$$
+
+    # source 完成后，读取 provider 声明的变量名，输出当前的 value
+    local vars
+    vars=$(_extract_exports "$file")
+    local var value
+    for var in $vars; do
+        [ -z "$var" ] && continue
+        eval "value=\${$var:-}"
+        [ -n "$value" ] || continue
+        printf "export %s='%s'\n" "$var" "$value"
+    done
+}
+
+# ── 子命令 ──
+
+cmd_init() {
+    cat <<'WRAPPER'
+# cc-switch-env wrapper
+_ccse() {
+  local cmd="${1:-}"
+  if [ -z "$cmd" ]; then
+    echo "ccse: usage: ccse <provider|ls|current|default>" >&2
+    ccenv list >&2
+    return 1
+  fi
+  case "$cmd" in
+    ls)      ccenv list ;;
+    current) ccenv current ;;
+    default)
+      case "${2:-}" in
+        -d) ccenv default -d ;;
+        *)  eval "$(ccenv default "${2:-}")" ;;
+      esac ;;
+    *)       eval "$(ccenv switch "$cmd")" ;;
+  esac
+}
+
+alias ccse='_ccse'
+WRAPPER
+
+    # 内联 restore，一次子进程搞定
+    cmd_restore
+}
+
+cmd_list() {
+    _list_providers
+}
+
+cmd_switch() {
+    local name="${1:-}"
+    [ -z "$name" ] && { echo "ccenv: usage: ccenv switch <provider>" >&2; return 1; }
+
+    _print_reset
+    _print_provider_env "$name" || return 1
+    echo "export CCENV_CURRENT_PROVIDER='${name}'"
+
+    mkdir -p "$(dirname "$LAST")"
+    echo "$name" > "$LAST"
+}
+
+cmd_default() {
+    if [ "${1:-}" = "-d" ]; then
+        rm -f "$STATE"
+        echo "ccenv: default cleared (last used still preserved)" >&2
+        return 0
+    fi
+
+    local name="${1:-}"
+    [ -z "$name" ] && { echo "ccenv: usage: ccenv default <provider|-d>" >&2; return 1; }
+
+    cmd_switch "$name" || return 1
+    mkdir -p "$(dirname "$STATE")"
+    echo "$name" > "$STATE"
+    echo "ccenv: default set to '$name'" >&2
+}
+
+cmd_restore() {
+    [ -n "${CCENV_NO_RESTORE:-}" ] && return 0
+
+    local provider
+
+    # 三级回退：state → last → 第一个可用
+    if [ -f "$STATE" ]; then
+        provider="$(cat "$STATE" 2>/dev/null)"
+        if [ -n "$provider" ] && [ -f "$PROVIDERS/${provider}.zsh" ]; then
+            _print_full_reset
+            _print_provider_env "$provider"
+            echo "export CCENV_CURRENT_PROVIDER='$provider'"
+            return 0
+        fi
+    fi
+
+    if [ -f "$LAST" ]; then
+        provider="$(cat "$LAST" 2>/dev/null)"
+        if [ -n "$provider" ] && [ -f "$PROVIDERS/${provider}.zsh" ]; then
+            _print_full_reset
+            _print_provider_env "$provider"
+            echo "export CCENV_CURRENT_PROVIDER='$provider'"
+            return 0
+        fi
+    fi
+
+    # 回退到第一个可用 provider
+    provider="$(_list_providers | head -1)"
+    if [ -n "$provider" ]; then
+        _print_full_reset
+        _print_provider_env "$provider"
+        echo "export CCENV_CURRENT_PROVIDER='$provider'"
+        return 0
+    fi
+}
+
+cmd_current() {
+    printf "provider: %s\n" "${CCENV_CURRENT_PROVIDER:-none}"
+    printf "default : %s\n" "$(cat "$STATE" 2>/dev/null || echo none)"
+    printf "last    : %s\n" "$(cat "$LAST" 2>/dev/null || echo none)"
+}
+
+# ── 入口 ──
+case "${1:-}" in
+    init)     cmd_init ;;
+    list)     cmd_list ;;
+    switch)   cmd_switch "${2:-}" ;;
+    default)  cmd_default "${2:-}" ;;
+    restore)  cmd_restore ;;
+    current)  cmd_current ;;
+    *)
+        echo "usage: ccenv {init|list|switch|default|restore|current}" >&2
+        exit 1
+        ;;
+esac
