@@ -4,8 +4,8 @@
 set -e
 
 BIN_DIR="${HOME}/.local/bin"
-CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/ccenv"
-DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/ccenv"
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/ccse"
+DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/ccse"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 echo "==> cc-switch-env install"
@@ -21,10 +21,10 @@ mkdir -p "$DATA_DIR/vars"
 LOG="$DATA_DIR/install.log"
 > "$LOG"
 
-# 安装 ccenv 脚本
-cp "$SCRIPT_DIR/ccenv" "$BIN_DIR/ccenv"
-chmod +x "$BIN_DIR/ccenv"
-echo "$BIN_DIR/ccenv" >> "$LOG"
+# 安装 ccse 脚本
+cp "$SCRIPT_DIR/ccse" "$BIN_DIR/ccse"
+chmod +x "$BIN_DIR/ccse"
+echo "$BIN_DIR/ccse" >> "$LOG"
 
 # 安装 provider 文件
 for f in "$SCRIPT_DIR/providers"/*.zsh; do
@@ -59,7 +59,7 @@ echo "==> 安装完成"
 echo ""
 echo "在 .zshrc 或 .bashrc 中添加以下行："
 echo ""
-echo "    eval \"\$(ccenv init)\""
+echo "    eval \"\$(ccse init)\""
 echo "    source $CONFIG_DIR/completions/_ccse     # zsh"
 echo "    # source $CONFIG_DIR/completions/ccse.bash   # bash"
 echo ""

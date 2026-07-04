@@ -5,13 +5,13 @@
 set -u -o pipefail
 
 # ── XDG 路径 ──
-CCENV_CONFIG="${CCENV_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/ccenv}"
-CCENV_DATA="${CCENV_DATA:-${XDG_DATA_HOME:-$HOME/.local/share}/ccenv}"
-: "${SECRETS:=$CCENV_CONFIG/secrets}"
-PROVIDERS="${CCENV_CONFIG}/providers"
-STATE="${CCENV_DATA}/state"
-LAST="${CCENV_DATA}/last"
-VARS_DIR="${CCENV_DATA}/vars"
+CCSE_CONFIG="${CCSE_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/ccse}"
+CCSE_DATA="${CCSE_DATA:-${XDG_DATA_HOME:-$HOME/.local/share}/ccse}"
+: "${SECRETS:=$CCSE_CONFIG/secrets}"
+PROVIDERS="${CCSE_CONFIG}/providers"
+STATE="${CCSE_DATA}/state"
+LAST="${CCSE_DATA}/last"
+VARS_DIR="${CCSE_DATA}/vars"
 
 # ── 工具函数 ──
 
@@ -65,7 +65,7 @@ EOF
 
 # 精准 reset：只清理上一个 provider 设过的变量（A + B）
 _print_reset() {
-    local prev_provider="${CCENV_CURRENT_PROVIDER:-}"
+    local prev_provider="${CCSE_CURRENT_PROVIDER:-}"
     local prev_file="$PROVIDERS/${prev_provider}.zsh"
 
     if [ -z "$prev_provider" ] || [ ! -f "$prev_file" ]; then
@@ -91,23 +91,22 @@ _print_provider_env() {
     local file="$PROVIDERS/${name}.zsh"
 
     if [ ! -f "$file" ]; then
-        echo "ccenv: unknown provider '$name'" >&2
-        printf "ccenv: available: %s\n" "$(_list_providers | tr '\n' ' ')" >&2
+        echo "ccse: unknown provider '$name'" >&2
+        printf "ccse: available: %s\n" "$(_list_providers | tr '\n' ' ')" >&2
         return 1
     fi
 
     _load_secrets
 
     # source provider 文件，变量（如 ${CCE_*_TOKEN:?}）在当前进程中展开
-    # 若 secrets 缺少对应的 key，${VAR:?} 会导致 source 失败
-    { . "$file"; } 2>/tmp/ccenv-provider-err.$$ || {
-        echo "ccenv: failed to load provider '$name'" >&2
-        cat /tmp/ccenv-provider-err.$$ >&2 2>/dev/null
-        rm -f /tmp/ccenv-provider-err.$$
-        echo "ccenv: check that required keys are set in $SECRETS" >&2
+    { . "$file"; } 2>/tmp/ccse-provider-err.$$ || {
+        echo "ccse: failed to load provider '$name'" >&2
+        cat /tmp/ccse-provider-err.$$ >&2 2>/dev/null
+        rm -f /tmp/ccse-provider-err.$$
+        echo "ccse: check that required keys are set in $SECRETS" >&2
         return 1
     }
-    rm -f /tmp/ccenv-provider-err.$$
+    rm -f /tmp/ccse-provider-err.$$
 
     # source 完成后，读取 provider 声明的变量名，输出当前的 value
     local vars
@@ -130,22 +129,22 @@ _ccse() {
   local cmd="${1:-}"
   if [ -z "$cmd" ]; then
     echo "ccse: usage: ccse <provider|ls|current|default>" >&2
-    ccenv list >&2
+    command ccse list >&2
     return 1
   fi
   case "$cmd" in
-    ls)      ccenv list ;;
-    current) ccenv current ;;
+    ls|list)    command ccse list ;;
+    current)    command ccse current ;;
     default)
       case "${2:-}" in
-        -d) ccenv default -d ;;
-        *)  eval "$(ccenv default "${2:-}")" ;;
+        -d) command ccse default -d ;;
+        *)  eval "$(command ccse default "${2:-}")" ;;
       esac ;;
-    *)       eval "$(ccenv switch "$cmd")" ;;
+    *)          eval "$(command ccse _switch "$cmd")" ;;
   esac
 }
 
-alias ccse='_ccse'
+alias ccse=_ccse
 WRAPPER
 
     # 内联 restore，一次子进程搞定
@@ -158,11 +157,11 @@ cmd_list() {
 
 cmd_switch() {
     local name="${1:-}"
-    [ -z "$name" ] && { echo "ccenv: usage: ccenv switch <provider>" >&2; return 1; }
+    [ -z "$name" ] && { echo "ccse: usage: ccse <provider>" >&2; return 1; }
 
     _print_reset
     _print_provider_env "$name" || return 1
-    echo "export CCENV_CURRENT_PROVIDER='${name}'"
+    echo "export CCSE_CURRENT_PROVIDER='${name}'"
 
     mkdir -p "$(dirname "$LAST")"
     echo "$name" > "$LAST"
@@ -171,21 +170,21 @@ cmd_switch() {
 cmd_default() {
     if [ "${1:-}" = "-d" ]; then
         rm -f "$STATE"
-        echo "ccenv: default cleared (last used still preserved)" >&2
+        echo "ccse: default cleared (last used still preserved)" >&2
         return 0
     fi
 
     local name="${1:-}"
-    [ -z "$name" ] && { echo "ccenv: usage: ccenv default <provider|-d>" >&2; return 1; }
+    [ -z "$name" ] && { echo "ccse: usage: ccse default <provider|-d>" >&2; return 1; }
 
     cmd_switch "$name" || return 1
     mkdir -p "$(dirname "$STATE")"
     echo "$name" > "$STATE"
-    echo "ccenv: default set to '$name'" >&2
+    echo "ccse: default set to '$name'" >&2
 }
 
 cmd_restore() {
-    [ -n "${CCENV_NO_RESTORE:-}" ] && return 0
+    [ -n "${CCSE_NO_RESTORE:-}" ] && return 0
 
     local provider
 
@@ -195,7 +194,7 @@ cmd_restore() {
         if [ -n "$provider" ] && [ -f "$PROVIDERS/${provider}.zsh" ]; then
             _print_full_reset
             _print_provider_env "$provider"
-            echo "export CCENV_CURRENT_PROVIDER='$provider'"
+            echo "export CCSE_CURRENT_PROVIDER='$provider'"
             return 0
         fi
     fi
@@ -205,7 +204,7 @@ cmd_restore() {
         if [ -n "$provider" ] && [ -f "$PROVIDERS/${provider}.zsh" ]; then
             _print_full_reset
             _print_provider_env "$provider"
-            echo "export CCENV_CURRENT_PROVIDER='$provider'"
+            echo "export CCSE_CURRENT_PROVIDER='$provider'"
             return 0
         fi
     fi
@@ -215,13 +214,13 @@ cmd_restore() {
     if [ -n "$provider" ]; then
         _print_full_reset
         _print_provider_env "$provider"
-        echo "export CCENV_CURRENT_PROVIDER='$provider'"
+        echo "export CCSE_CURRENT_PROVIDER='$provider'"
         return 0
     fi
 }
 
 cmd_current() {
-    printf "provider: %s\n" "${CCENV_CURRENT_PROVIDER:-none}"
+    printf "provider: %s\n" "${CCSE_CURRENT_PROVIDER:-none}"
     printf "default : %s\n" "$(cat "$STATE" 2>/dev/null || echo none)"
     printf "last    : %s\n" "$(cat "$LAST" 2>/dev/null || echo none)"
 }
@@ -230,12 +229,12 @@ cmd_current() {
 case "${1:-}" in
     init)     cmd_init ;;
     list)     cmd_list ;;
-    switch)   cmd_switch "${2:-}" ;;
+    _switch)  cmd_switch "${2:-}" ;;
     default)  cmd_default "${2:-}" ;;
     restore)  cmd_restore ;;
     current)  cmd_current ;;
     *)
-        echo "usage: ccenv {init|list|switch|default|restore|current}" >&2
+        echo "usage: ccse {init|list|current|default|restore}" >&2
         exit 1
         ;;
 esac
