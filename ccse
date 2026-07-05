@@ -265,9 +265,7 @@ cmd_restore() {
 }
 
 cmd_current() {
-    printf "provider: %s\n" "${CCSE_CURRENT_PROVIDER:-none}"
-    printf "default : %s\n" "$(cat "$STATE" 2>/dev/null || echo none)"
-    printf "last    : %s\n" "$(cat "$LAST" 2>/dev/null || echo none)"
+    printf "%s\n" "${CCSE_CURRENT_PROVIDER:-none}"
 }
 
 # ── Entry point ──
