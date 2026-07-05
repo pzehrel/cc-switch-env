@@ -117,15 +117,15 @@ _print_provider_env() {
 
     _load_secrets
 
-    # Source the provider file; ${CCE_*_TOKEN:?} style vars expand in-process
-    { . "$file"; } 2>/tmp/ccse-provider-err.$$ || {
+    # Validate in a subshell first so ${CCE_*_TOKEN:?} doesn't kill us
+    ( . "$file" ) 2>/dev/null || {
         echo "ccse: failed to load provider '$name'" >&2
-        cat /tmp/ccse-provider-err.$$ >&2 2>/dev/null
-        rm -f /tmp/ccse-provider-err.$$
         echo "ccse: check that required keys are set in $SECRETS" >&2
         return 1
     }
-    rm -f /tmp/ccse-provider-err.$$
+
+    # Source for real — we already know it works
+    . "$file"
 
     # Print current values of variables declared by this provider
     local vars
@@ -211,7 +211,8 @@ cmd_switch() {
         return 1
     fi
     _load_secrets
-    { . "$provider_file"; } 2>/dev/null || {
+    # Subshell isolates ${VAR:?} from killing the whole script
+    ( . "$provider_file" ) 2>/dev/null || {
         echo "ccse: failed to load provider '$name'" >&2
         echo "ccse: check that required keys are set in $SECRETS" >&2
         return 1
