@@ -204,6 +204,19 @@ cmd_switch() {
     # Resolve alias if needed
     name=$(_resolve_alias "$name")
 
+    # Validate provider can load before resetting old env
+    local provider_file="$PROVIDERS/${name}.zsh"
+    if [ ! -f "$provider_file" ]; then
+        echo "ccse: unknown provider '$name'" >&2
+        return 1
+    fi
+    _load_secrets
+    { . "$provider_file"; } 2>/dev/null || {
+        echo "ccse: failed to load provider '$name'" >&2
+        echo "ccse: check that required keys are set in $SECRETS" >&2
+        return 1
+    }
+
     _print_reset
     _print_provider_env "$name" || return 1
     echo "export CCSE_CURRENT_PROVIDER='${name}'"
